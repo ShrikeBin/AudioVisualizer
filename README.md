@@ -1,5 +1,7 @@
 ## Audio visualizer written in C
 
+`work in progress -> see ROADMAP.md for details`
+
 So far uses `miniaudio` and `kiss_ftt` but eventually will have their functions rewritten
 
 requires files (not present in this repository):
