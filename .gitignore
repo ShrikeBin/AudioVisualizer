@@ -1,0 +1,24 @@
+# --- Pattern code to be based on ---
+/PATTERN/
+
+# --- Execs ---
+visualizer
+*.out
+*.exe
+
+# --- Obj and libs ---
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+
+# --- Build ---
+build/
+bin/
+dist/
+
+# --- Just in case i left something ---
+.vscode/
+*.wav
+*.mp3
