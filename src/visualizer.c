@@ -4,6 +4,10 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 // Called by the sound card whenever it needs more data
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) 
@@ -13,6 +17,30 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
     // Read frames from WAV file to the output buffer
     ma_decoder_read_pcm_frames(pDecoder, pOutput, frameCount, NULL);
+}
+
+struct termios orig_termios;
+
+void disableRawMode() {
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+}
+
+void enableRawMode() {
+    // Save current terminal state
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    // Tell Linux to run disableRawMode when the program exits
+    atexit(disableRawMode);
+
+    struct termios raw = orig_termios;
+    // ECHO: stop printing keys back to the screen
+    // ICANON: stop waiting for the Enter key (read byte-by-byte)
+    raw.c_lflag &= ~(ECHO | ICANON);
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+
+    // Set input to non-blocking so getchar() doesn't freeze the timer
+    int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 }
 
 int main(int argc, char** argv) 
@@ -65,10 +93,42 @@ int main(int argc, char** argv)
     double duration = (double)totalFrames / decoder.outputSampleRate;
 
     printf("Playing: %s\n", argv[1]);
-    printf("Ctr + C to stop.\n\n");
+    printf("[Q] to stop.\n");
+    printf("[J] to jump back 10 seconds.\n");
+    printf("[K] to pause/resume playback.\n");
+    printf("[L] to jump forward 10 seconds.\n\n");
+
+    enableRawMode();
 
     while(1) 
     {
+        char c;
+        while (read(STDIN_FILENO, &c, 1) == 1) 
+        { 
+            ma_uint64 currentPos;
+            ma_decoder_get_cursor_in_pcm_frames(&decoder, &currentPos);
+            ma_uint64 step = decoder.outputSampleRate * 10; // 10 second jump
+
+            if (c == 'j') 
+            {
+                ma_uint64 newPos = (currentPos > step) ? (currentPos - step) : 0;
+                ma_decoder_seek_to_pcm_frame(&decoder, newPos);
+            } 
+            else if (c == 'l') 
+            {
+                ma_decoder_seek_to_pcm_frame(&decoder, currentPos + step);
+            } 
+            else if (c == 'k') 
+            {
+                if (ma_device_is_started(&device)) ma_device_stop(&device);
+                else ma_device_start(&device);
+            } 
+            else if (c == 'q') 
+            {
+                goto cleanup;
+            }
+        }
+
         ma_uint64 cursor;
         ma_decoder_get_cursor_in_pcm_frames(&decoder, &cursor);
         
@@ -85,16 +145,12 @@ int main(int argc, char** argv)
         
         fflush(stdout); 
 
-        if (cursor >= totalFrames) 
-        {
-            printf("\nFinished playback.\n");
-            break; 
-        }
-
-        ma_sleep(100); 
+        if (cursor >= totalFrames) break;
+        ma_sleep(50); // Lowered sleep slightly for snappier controls
     }
 
-    // Cleanup (memory leaks i guess)
+cleanup:
+    disableRawMode();
     ma_device_uninit(&device);
     ma_decoder_uninit(&decoder);
 

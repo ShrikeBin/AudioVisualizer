@@ -2,7 +2,7 @@
 
 So far uses `miniaudio` and `kiss_ftt` but eventually will have their functions rewritten
 
-requires files:
+requires files (not present in this repository):
 ```
 lib/
 ├── kiss_fft.c
