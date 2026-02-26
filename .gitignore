@@ -1,5 +1,5 @@
 # --- Pattern code to be based on ---
-/PATTERN/
+/.pattern
 
 # --- Execs ---
 visualizer
@@ -12,6 +12,14 @@ visualizer
 *.a
 *.so
 *.dylib
+/lib
+
+# --- Test files ---
+tests/*.test
+*.log
+*.gcov
+*.gcda
+*.gcno
 
 # --- Build ---
 build/
