@@ -21,11 +21,13 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 struct termios orig_termios;
 
-void disableRawMode() {
+void disableRawMode() 
+{
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
-void enableRawMode() {
+void enableRawMode() 
+{
     // Save current terminal state
     tcgetattr(STDIN_FILENO, &orig_termios);
     // Tell Linux to run disableRawMode when the program exits
@@ -87,7 +89,6 @@ int main(int argc, char** argv)
         return -4;
     }
 
-    // Get Total Length
     ma_uint64 totalFrames;
     ma_decoder_get_length_in_pcm_frames(&decoder, &totalFrames);
     double duration = (double)totalFrames / decoder.outputSampleRate;
@@ -107,21 +108,40 @@ int main(int argc, char** argv)
         { 
             ma_uint64 currentPos;
             ma_decoder_get_cursor_in_pcm_frames(&decoder, &currentPos);
-            ma_uint64 step = decoder.outputSampleRate * 10; // 10 second jump
+            ma_uint64 step = decoder.outputSampleRate * 10;
 
             if (c == 'j') 
             {
-                ma_uint64 newPos = (currentPos > step) ? (currentPos - step) : 0;
+                ma_uint64 newPos;
+                if(currentPos > step) 
+                {
+                    newPos = currentPos - step;
+                } 
+                else
+                {
+                    newPos = 0;
+                }
                 ma_decoder_seek_to_pcm_frame(&decoder, newPos);
             } 
             else if (c == 'l') 
             {
-                ma_decoder_seek_to_pcm_frame(&decoder, currentPos + step);
+                ma_uint64 newPos = currentPos + step;
+                if (newPos >= totalFrames) 
+                {
+                    newPos = totalFrames; 
+                }
+                ma_decoder_seek_to_pcm_frame(&decoder, newPos);
             } 
             else if (c == 'k') 
             {
-                if (ma_device_is_started(&device)) ma_device_stop(&device);
-                else ma_device_start(&device);
+                if (ma_device_is_started(&device))
+                {
+                    ma_device_stop(&device);
+                }
+                else 
+                {
+                    ma_device_start(&device);
+                }
             } 
             else if (c == 'q') 
             {
@@ -145,8 +165,11 @@ int main(int argc, char** argv)
         
         fflush(stdout); 
 
-        if (cursor >= totalFrames) break;
-        ma_sleep(50); // Lowered sleep slightly for snappier controls
+        if (cursor >= totalFrames) 
+        {
+            goto cleanup;
+        }
+        ma_sleep(50);
     }
 
 cleanup:
